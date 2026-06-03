@@ -1,3 +1,5 @@
+import { HostListingForm } from '@/components/HostForm'
+
 export default function HostPage() {
-  return <main>Host</main>;
+  return <HostListingForm />
 }
