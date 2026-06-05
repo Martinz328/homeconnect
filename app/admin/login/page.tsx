@@ -1,58 +1,88 @@
-'use client'
+"use client";
 
-import { Input } from '@/components/ui/input'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-export function AdminLogin() {
+import { adminLogin } from "@/app/actions/auth";
+import { Input } from "@/components/ui/input";
+
+export default function AdminLoginPage() {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    const result = await adminLogin(email, password);
+
+    setIsLoading(false);
+
+    if (result.success) {
+      router.push("/admin");
+      return;
+    }
+
+    setError("Invalid credentials");
+  };
+
   return (
-    <div className="min-h-screen bg-[#F9F9F9] flex items-center justify-center p-4">
-      <div className="w-full max-w-[340px] bg-white rounded-[12px] p-6">
-        {/* Title */}
-        <h1 className="font-plus-jakarta font-bold text-[22px] text-[#D4500A] text-center mb-1">
+    <div className="flex min-h-screen items-center justify-center bg-[#F9F9F9] p-4">
+      <div className="w-full max-w-[340px] rounded-[12px] bg-white p-6">
+        <h1 className="mb-1 text-center font-jakarta text-[22px] font-bold text-[#D4500A]">
           HomeConnect Admin
         </h1>
-        
-        {/* Subtitle */}
-        <p className="font-inter font-normal text-[14px] text-[#6C6C70] text-center mb-6">
+
+        <p className="mb-6 text-center font-inter text-[14px] font-normal text-[#6C6C70]">
           Sign in to manage listings.
         </p>
 
-        {/* Form */}
-        <form className="space-y-4">
-          {/* Email */}
+        <form className="space-y-4" onSubmit={handleSubmit}>
           <div>
-            <label className="font-inter font-medium text-[14px] text-[#1C1C1E] mb-1.5 block">
+            <label className="mb-1.5 block font-inter text-[14px] font-medium text-[#1C1C1E]">
               Email
             </label>
-            <Input 
+            <Input
               type="email"
               placeholder="admin@homeconnect.com"
-              className="h-12 text-[14px] rounded-[8px]"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              className="h-12 rounded-[8px] text-[14px]"
             />
           </div>
 
-          {/* Password */}
           <div>
-            <label className="font-inter font-medium text-[14px] text-[#1C1C1E] mb-1.5 block">
+            <label className="mb-1.5 block font-inter text-[14px] font-medium text-[#1C1C1E]">
               Password
             </label>
-            <Input 
+            <Input
               type="password"
               placeholder="••••••••"
-              className="h-12 text-[14px] rounded-[8px]"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              className="h-12 rounded-[8px] text-[14px]"
             />
           </div>
 
-          {/* Sign In Button */}
-          <button 
+          <button
             type="submit"
-            className="w-full h-[52px] bg-[#D4500A] text-white font-inter font-semibold text-[14px] rounded-[8px] mt-2"
+            disabled={isLoading}
+            className="mt-2 h-[52px] w-full rounded-[8px] bg-[#D4500A] font-inter text-[14px] font-semibold text-white disabled:opacity-60"
           >
-            Sign In
+            {isLoading ? "Signing in…" : "Sign In"}
           </button>
+
+          {error && (
+            <p className="text-center text-[14px] text-[#C0392B]">{error}</p>
+          )}
         </form>
       </div>
     </div>
-  )
+  );
 }
-
-export default AdminLogin

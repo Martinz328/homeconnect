@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
 
-import type { Listing } from "@/components/ListingCard";
+import { HomeConnectLogo } from "@/components/HomeConnectLogo";
+import { ListingCard, type Listing } from "@/components/ListingCard";
 import { Input } from "@/components/ui/input";
 import {
   Sheet,
@@ -13,12 +14,13 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { AMENITIES, QUARTERS } from "@/lib/constants";
+import { buildWhatsAppLink } from "@/lib/utils";
 
 const QUARTER_CHIPS = ["All", ...QUARTERS] as const;
 
 type FilterBarProps = {
   listings: Listing[];
-  onFilter: (filtered: Listing[]) => void;
+  onFilter?: (filtered: Listing[]) => void;
   filterOpen?: boolean;
   onFilterOpenChange?: (open: boolean) => void;
 };
@@ -71,6 +73,7 @@ export function FilterBar({
   const filterOpen = controlledOpen ?? internalOpen;
   const setFilterOpen = onFilterOpenChange ?? setInternalOpen;
 
+  const [filteredListings, setFilteredListings] = useState(listings);
   const [activeQuarter, setActiveQuarter] = useState("All");
   const [selectedQuarters, setSelectedQuarters] = useState<string[]>([]);
   const [minPrice, setMinPrice] = useState("");
@@ -78,16 +81,16 @@ export function FilterBar({
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([]);
 
   const runFilter = useCallback(() => {
-    onFilter(
-      applyFilters(
-        listings,
-        activeQuarter,
-        selectedQuarters,
-        minPrice,
-        maxPrice,
-        selectedAmenities,
-      ),
+    const filtered = applyFilters(
+      listings,
+      activeQuarter,
+      selectedQuarters,
+      minPrice,
+      maxPrice,
+      selectedAmenities,
     );
+    setFilteredListings(filtered);
+    onFilter?.(filtered);
   }, [
     listings,
     activeQuarter,
@@ -127,6 +130,11 @@ export function FilterBar({
 
   return (
     <>
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-5">
+        <HomeConnectLogo />
+        <FilterBarTrigger onClick={() => setFilterOpen(true)} />
+      </header>
+
       <div className="sticky top-14 z-30 border-b border-border bg-card py-3 shadow-[0_2px_4px_rgba(0,0,0,0.06)]">
         <div className="hide-scrollbar flex gap-2 overflow-x-auto px-5">
           {QUARTER_CHIPS.map((quarter) => (
@@ -144,6 +152,27 @@ export function FilterBar({
             </button>
           ))}
         </div>
+      </div>
+
+      <div className="px-4 py-3">
+        <p className="text-sm text-muted-foreground">
+          {filteredListings.length} room
+          {filteredListings.length !== 1 ? "s" : ""} available
+        </p>
+      </div>
+
+      <div className="flex flex-col gap-4 px-4 pb-8">
+        {filteredListings.map((listing) => (
+          <ListingCard
+            key={listing.id}
+            listing={listing}
+            whatsappLink={buildWhatsAppLink({
+              room_type: listing.room_type,
+              quarter: listing.quarter,
+              price_per_2weeks: listing.price_per_2weeks,
+            })}
+          />
+        ))}
       </div>
 
       <Sheet open={filterOpen} onOpenChange={setFilterOpen}>

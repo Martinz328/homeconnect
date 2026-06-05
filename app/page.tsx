@@ -6,27 +6,27 @@ export default function HomePage() {
     <div className="min-h-screen bg-[#F9F9F9]">
       {/* Header Bar */}
       <header className="sticky top-0 z-50 h-14 bg-white border-b border-[#E5E5EA] px-5 flex items-center">
-        <span
-          className="font-bold text-xl text-[#D4500A]"
-          style={{ fontFamily: 'var(--font-plus-jakarta-sans)' }}
+        <Link
+          href="/"
+          className="font-jakarta text-xl font-bold text-[#D4500A] transition-opacity hover:opacity-80"
         >
           HomeConnect
-        </span>
+        </Link>
       </header>
 
       {/* Hero Section */}
       <section className="bg-white px-5 py-8">
         <h1
           className="text-[30px] font-extrabold leading-tight text-[#1C1C1E] text-balance"
-          style={{ fontFamily: 'var(--font-plus-jakarta-sans)' }}
+          style={{ fontFamily: 'var(--font-jakarta)' }}
         >
-          Find Your Buea Room
+          Find A Room In Buea
         </h1>
         <p
           className="mt-3 text-[15px] font-normal leading-[1.6] text-[#6C6C70]"
           style={{ fontFamily: 'var(--font-inter)' }}
         >
-          Short-stay rooms near all marking centres. Real photos, clear prices.
+          Short-stay rooms, studios, apartments near all marking centres. Real photos, Moderate prices.
           Built for GCE marking season 2026.
         </p>
 
@@ -42,7 +42,7 @@ export default function HomePage() {
             className="inline-flex items-center rounded-full bg-[#EAF5EE] px-3 py-1 text-xs font-semibold text-[#1A6B3C]"
             style={{ fontFamily: 'var(--font-inter)' }}
           >
-            ✔ July 2026 Season
+            ✔ GCE 2026 Season
           </span>
         </div>
       </section>
@@ -69,7 +69,7 @@ export default function HomePage() {
       <section className="bg-[#F9F9F9] px-5 py-6">
         <h2
           className="text-[22px] font-bold text-[#1C1C1E]"
-          style={{ fontFamily: 'var(--font-plus-jakarta-sans)' }}
+          style={{ fontFamily: 'var(--font-jakarta)' }}
         >
           How It Works
         </h2>
@@ -89,7 +89,7 @@ export default function HomePage() {
                 className="text-[15px] font-normal text-[#3A3A3C]"
                 style={{ fontFamily: 'var(--font-inter)' }}
               >
-                Browse real rooms with photos
+                Browse available rooms, studios, apartments suitable to you
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -107,7 +107,7 @@ export default function HomePage() {
                 className="text-[15px] font-normal text-[#3A3A3C]"
                 style={{ fontFamily: 'var(--font-inter)' }}
               >
-                Move in. Sorted.
+                Book and move in. Sorted.
               </span>
             </li>
           </ul>
@@ -128,7 +128,7 @@ export default function HomePage() {
                 className="text-[15px] font-normal text-[#3A3A3C]"
                 style={{ fontFamily: 'var(--font-inter)' }}
               >
-                List your room free in 3 minutes
+                List your room, studio, apartment for free. No signup required.
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -137,7 +137,7 @@ export default function HomePage() {
                 className="text-[15px] font-normal text-[#3A3A3C]"
                 style={{ fontFamily: 'var(--font-inter)' }}
               >
-                We connect you with verified examiners
+                We connect you with Interested GCE Examiners
               </span>
             </li>
             <li className="flex items-start gap-2">
@@ -146,7 +146,7 @@ export default function HomePage() {
                 className="text-[15px] font-normal text-[#3A3A3C]"
                 style={{ fontFamily: 'var(--font-inter)' }}
               >
-                Collect your full rent directly
+                Collect your rent directly from the examiner
               </span>
             </li>
           </ul>
@@ -161,8 +161,7 @@ export default function HomePage() {
             className="text-sm font-normal text-[#92400E]"
             style={{ fontFamily: 'var(--font-inter)' }}
           >
-            Your contact is private. Only shared after a verified service fee
-            payment.
+            Your contact is private. Only shared after an Interested verified Examineer requests it. View your listing in the "Find A Room" section.
           </p>
         </div>
       </section>
@@ -173,7 +172,7 @@ export default function HomePage() {
           className="text-center text-xs font-normal text-[#6C6C70]"
           style={{ fontFamily: 'var(--font-inter)' }}
         >
-          © HomeConnect 2026 · Buea, Cameroon
+          © HomeConnect 2026 · Martins · Buea, Cameroon
         </p>
       </footer>
     </div>

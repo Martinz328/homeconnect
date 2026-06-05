@@ -1,14 +1,23 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
 
-export function middleware(request: NextRequest) {
-  // Pass-through all requests cleanly for now
+const ADMIN_SESSION_COOKIE = "hc-admin-session";
+
+export default function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  if (pathname.startsWith("/admin") && !pathname.startsWith("/admin/login")) {
+    const session = request.cookies.get(ADMIN_SESSION_COOKIE);
+    const secret = process.env.COOKIE_SECRET;
+
+    if (!session?.value || !secret || session.value !== secret) {
+      return NextResponse.redirect(new URL("/admin/login", request.url));
+    }
+  }
+
   return NextResponse.next();
 }
 
-// Stop the middleware from running on static files/images
 export const config = {
-  matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-  ],
+  matcher: ["/admin/:path*"],
 };

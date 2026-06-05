@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import {
   BatteryCharging,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { AMENITIES } from "@/lib/constants";
+import { createClient } from "@/lib/supabase";
 import { formatPrice } from "@/lib/utils";
 
 export type Listing = {
@@ -51,6 +52,14 @@ function isRemotePhoto(url: string) {
   return url.startsWith("http://") || url.startsWith("https://");
 }
 
+function resolvePhotoUrl(path: string): string {
+  if (!path) return "";
+  if (isRemotePhoto(path)) return path;
+  const supabase = createClient();
+  const { data } = supabase.storage.from("listing-photos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 export type ListingCardProps = {
   listing: Listing;
   showAdminActions?: boolean;
@@ -73,9 +82,17 @@ export function ListingCard({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
-  const photos = listing.photos.length > 0 ? listing.photos : [""];
+  const photoUrls = useMemo(
+    () =>
+      listing.photos
+        .map(resolvePhotoUrl)
+        .filter((url) => url.length > 0),
+    [listing.photos],
+  );
+
+  const photos = photoUrls.length > 0 ? photoUrls : [""];
   const isAdminView = showAdminActions || showExpireAction;
-  const hasCarousel = !isAdminView && photos.some(isRemotePhoto);
+  const hasCarousel = !isAdminView && photos.length > 0 && photos[0] !== "";
   const displayedAmenities = listing.amenities.slice(0, 5);
 
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -130,6 +147,7 @@ export function ListingCard({
             src={photos[currentImageIndex]}
             alt={`${listing.room_type} in ${listing.quarter}`}
             fill
+            unoptimized
             className="rounded-t-xl object-cover"
             sizes="(max-width: 768px) 100vw, 400px"
           />
@@ -154,7 +172,7 @@ export function ListingCard({
       ) : (
         <div className="mb-4 flex gap-1.5 overflow-x-auto">
           {photos.map((photo, index) =>
-            isRemotePhoto(photo) ? (
+            photo ? (
               <div
                 key={index}
                 className="relative h-[60px] w-[60px] shrink-0 overflow-hidden rounded-[8px]"
@@ -163,6 +181,7 @@ export function ListingCard({
                   src={photo}
                   alt=""
                   fill
+                  unoptimized
                   className="object-cover"
                   sizes="60px"
                 />

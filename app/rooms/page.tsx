@@ -1,48 +1,69 @@
-import { RoomsBrowse } from "@/components/RoomsBrowse";
+import { FilterBar } from "@/components/FilterBar";
+import { HomeConnectLogo } from "@/components/HomeConnectLogo";
 import type { Listing } from "@/components/ListingCard";
+import { createClient } from "@/lib/supabase-server";
 
-const SAMPLE_LISTINGS: Listing[] = [
-  {
-    id: "1",
-    host_name: "Amara M.",
-    room_type: "Room-Kitchen-Toilet",
-    quarter: "Molyko",
-    spaces: 2,
-    price_per_2weeks: 28000,
-    amenities: ["water", "power", "wifi", "kitchen"],
-    photos: [
-      "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=400&h=300&fit=crop",
-    ],
-  },
-  {
-    id: "2",
-    host_name: "Fongod E.",
-    room_type: "Single Room",
-    quarter: "Bonduma",
-    spaces: 1,
-    price_per_2weeks: 15000,
-    amenities: ["water", "power", "fan"],
-    photos: [
-      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop",
-    ],
-  },
-  {
-    id: "3",
-    host_name: "Njang P.",
-    room_type: "Studio",
-    quarter: "Sandpit",
-    spaces: 2,
-    price_per_2weeks: 35000,
-    amenities: ["water", "power", "wifi", "ac", "kitchen"],
-    photos: [
-      "https://images.unsplash.com/photo-1536376072261-38c75010e6c9?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1564078516393-cf04bd966897?w=400&h=300&fit=crop",
-      "https://images.unsplash.com/photo-1560185007-cde436f6a4d0?w=400&h=300&fit=crop",
-    ],
-  },
-];
+type ListingRow = {
+  id: number;
+  host_name: string;
+  room_type: string;
+  quarter: string;
+  spaces: number;
+  price_per_2weeks: number;
+  amenities: string[];
+  house_rules: string[];
+  photos: string[];
+  status: string;
+};
 
-export default function BrowseRoomsPage() {
-  return <RoomsBrowse listings={SAMPLE_LISTINGS} />;
+function mapListing(row: ListingRow): Listing {
+  return {
+    id: String(row.id),
+    host_name: row.host_name,
+    room_type: row.room_type,
+    quarter: row.quarter,
+    spaces: row.spaces,
+    price_per_2weeks: row.price_per_2weeks,
+    amenities: row.amenities ?? [],
+    photos: row.photos ?? [],
+  };
+}
+
+export const revalidate = 60;
+
+export default async function RoomsPage() {
+  const supabase = createClient();
+
+  const { data, error } = await supabase
+    .from("listings")
+    .select(
+      "id, host_name, room_type, quarter, spaces, price_per_2weeks, amenities, house_rules, photos, status",
+    )
+    .eq("status", "Live")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Failed to fetch listings:", error.message);
+  }
+
+  const listings = (data ?? []).map((row) => mapListing(row as ListingRow));
+
+  if (listings.length === 0) {
+    return (
+      <div className="min-h-screen bg-background">
+        <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card px-5">
+          <HomeConnectLogo />
+        </header>
+        <p className="px-4 py-16 text-center font-inter text-[15px] font-normal text-[#6C6C70]">
+          No rooms listed yet. Check back soon.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <FilterBar listings={listings} />
+    </div>
+  );
 }

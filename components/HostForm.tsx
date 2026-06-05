@@ -1,315 +1,479 @@
-'use client'
+"use client";
 
-import { useState, useRef } from 'react'
-import { ChevronLeft, Check, Lock, UploadCloud, X, Plus, CheckCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useRef, useState } from "react";
+import imageCompression from "browser-image-compression";
+import {
+  Check,
+  CheckCircle,
+  ChevronLeft,
+  Lock,
+  Plus,
+  UploadCloud,
+  X,
+} from "lucide-react";
+
+import { submitListing } from "@/app/actions/listings";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Checkbox } from '@/components/ui/checkbox'
+} from "@/components/ui/select";
+import {
+  AMENITIES,
+  HOUSE_RULES,
+  QUARTERS,
+  ROOM_TYPES,
+} from "@/lib/constants";
+import { createClient } from "@/lib/supabase";
+import { cn } from "@/lib/utils";
 
-const ROOM_TYPES = [
-  'Single Room',
-  'Room-Kitchen-Toilet',
-  'Studio',
-  'Apartment',
-  'Shared Room',
-]
-
-const QUARTERS = [
-  'Molyko',
-  'Bonduma',
-  'Sandpit',
-  'Mile 17',
-  'Clerks Quarter',
-  'Santa Barbara',
-  'Buea Town',
-  'Bokwango',
-  'Other',
-]
-
-const AMENITIES = [
-  'Running water',
-  'Stable electricity',
-  'Generator backup',
-  'WiFi',
-  'Kitchen access',
-  'Private bathroom',
-  'Shared bathroom',
-  'Furnished',
-  'Fan',
-  'A/C',
-]
-
-const HOUSE_RULES = [
-  'No cooking',
-  'No loud noise',
-  'Male only',
-  'Female only',
-  'Any gender',
-  'Couples allowed',
-  'No visitors',
-]
+const WHATSAPP_PATTERN = /^6[0-9]{8}$/;
+const MIN_PRICE = 5000;
+const MAX_PRICE = 500000;
 
 interface FormData {
-  firstName: string
-  roomType: string
-  quarter: string
-  specifyLocation: string
-  capacity: string
-  price: string
-  amenities: string[]
-  houseRules: string[]
-  whatsapp: string
-  photos: File[]
-  agreed: boolean
+  firstName: string;
+  roomType: string;
+  quarter: string;
+  specifyLocation: string;
+  capacity: string;
+  price: string;
+  amenities: string[];
+  houseRules: string[];
+  whatsapp: string;
+  agreed: boolean;
 }
 
-export function HostListingForm() {
-  const [step, setStep] = useState(1)
-  const [submitted, setSubmitted] = useState(false)
-  const [formData, setFormData] = useState<FormData>({
-    firstName: '',
-    roomType: '',
-    quarter: '',
-    specifyLocation: '',
-    capacity: '',
-    price: '',
-    amenities: [],
-    houseRules: [],
-    whatsapp: '',
-    photos: [],
-    agreed: false,
-  })
-  const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
-  const fileInputRef = useRef<HTMLInputElement>(null)
+type FieldErrors = Partial<
+  Record<
+    | "firstName"
+    | "roomType"
+    | "quarter"
+    | "specifyLocation"
+    | "capacity"
+    | "price"
+    | "whatsapp"
+    | "photos"
+    | "agreed",
+    string
+  >
+>;
 
-  const updateFormData = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setFormData((prev) => ({ ...prev, [key]: value }))
-  }
+function randomSuffix(): string {
+  return Math.random().toString(36).slice(2, 6);
+}
 
-  const toggleArrayItem = (key: 'amenities' | 'houseRules', item: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: prev[key].includes(item)
-        ? prev[key].filter((i) => i !== item)
-        : [...prev[key], item],
-    }))
-  }
+function getExtension(file: File): string {
+  const fromName = file.name.split(".").pop()?.toLowerCase();
+  if (fromName === "jpeg" || fromName === "jpg") return "jpg";
+  if (fromName === "png") return "png";
+  if (file.type === "image/png") return "png";
+  return "jpg";
+}
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files
-    if (!files) return
+function capacityToSpaces(capacity: string): number {
+  if (capacity === "3+") return 3;
+  return Number.parseInt(capacity, 10);
+}
 
-    const newPhotos = Array.from(files).slice(0, 5 - formData.photos.length)
-    const newPreviews = newPhotos.map((file) => URL.createObjectURL(file))
-
-    setFormData((prev) => ({
-      ...prev,
-      photos: [...prev.photos, ...newPhotos].slice(0, 5),
-    }))
-    setPhotoPreviews((prev) => [...prev, ...newPreviews].slice(0, 5))
-  }
-
-  const removePhoto = (index: number) => {
-    URL.revokeObjectURL(photoPreviews[index])
-    setFormData((prev) => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index),
-    }))
-    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index))
-  }
-
-  const handleSubmit = () => {
-    // Placeholder submit logic
-    console.log('Form submitted:', formData)
-    setSubmitted(true)
-  }
-
-  const canSubmit = formData.agreed && formData.photos.length >= 1
-
-  // Step Progress Indicator
-  const StepIndicator = () => (
+function StepIndicator({ step }: { step: number }) {
+  return (
     <div className="flex flex-col items-center gap-2 py-4">
       <div className="flex items-center gap-0">
         {[1, 2, 3].map((s, index) => (
           <div key={s} className="flex items-center">
-            {/* Step Circle */}
             <div
               className={cn(
-                'w-[10px] h-[10px] rounded-full flex items-center justify-center',
+                "flex h-[10px] w-[10px] items-center justify-center rounded-full",
                 s < step
-                  ? 'bg-primary'
+                  ? "bg-primary"
                   : s === step
-                    ? 'bg-primary'
-                    : 'bg-white border border-border'
+                    ? "bg-primary"
+                    : "border border-border bg-white",
               )}
             >
-              {s < step && <Check className="w-[6px] h-[6px] text-white" strokeWidth={3} />}
+              {s < step && (
+                <Check className="h-[6px] w-[6px] text-white" strokeWidth={3} />
+              )}
             </div>
-            {/* Line between dots */}
-            {index < 2 && (
-              <div className="w-16 h-px bg-border" />
-            )}
+            {index < 2 && <div className="h-px w-16 bg-border" />}
           </div>
         ))}
       </div>
-      <span className="text-[13px] text-muted font-normal">Step {step} of 3</span>
+      <span className="text-[13px] font-normal text-muted">Step {step} of 3</span>
     </div>
-  )
+  );
+}
 
-  // Header
-  const Header = () => (
-    <header className="bg-white border-b border-border px-5 py-3 flex items-center">
+function HostFormHeader({ onBack }: { onBack: () => void }) {
+  return (
+    <header className="flex items-center border-b border-border bg-white px-5 py-3">
       <button
-        onClick={() => (step > 1 ? setStep(step - 1) : null)}
-        className="p-1 -ml-1"
+        type="button"
+        onClick={onBack}
+        className="-ml-1 p-1"
         aria-label="Go back"
       >
-        <ChevronLeft className="w-5 h-5 text-foreground" />
+        <ChevronLeft className="h-5 w-5 text-foreground" />
       </button>
-      <h1 className="flex-1 text-center font-semibold text-[18px] text-foreground pr-6">
+      <h1 className="flex-1 pr-6 text-center text-[18px] font-semibold text-foreground">
         List Your Room
       </h1>
     </header>
-  )
+  );
+}
 
-  // Input Field Component
-  const InputField = ({
-    label,
-    required,
-    children,
-    helper,
-  }: {
-    label: string
-    required?: boolean
-    children: React.ReactNode
-    helper?: string
-  }) => (
+function InputField({
+  label,
+  required,
+  children,
+  helper,
+  error,
+}: {
+  label: string;
+  required?: boolean;
+  children: React.ReactNode;
+  helper?: string;
+  error?: string;
+}) {
+  return (
     <div className="flex flex-col gap-1.5">
       <label className="text-[15px] font-medium text-foreground">
         {label}
         {required && <span className="text-primary"> *</span>}
       </label>
       {children}
-      {helper && <span className="text-[13px] text-muted">{helper}</span>}
+      {helper && !error && (
+        <span className="text-[13px] text-muted">{helper}</span>
+      )}
+      {error && <span className="text-[13px] text-[#C0392B]">{error}</span>}
     </div>
-  )
+  );
+}
 
-  // Custom styled input
-  const StyledInput = ({
-    ...props
-  }: React.InputHTMLAttributes<HTMLInputElement>) => (
+function StyledInput({
+  ...props
+}: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
     <input
       {...props}
-      className="h-12 rounded-lg border border-border bg-white px-4 text-[15px] text-foreground placeholder:text-muted focus:outline-none focus:border-primary focus:bg-primary-tint transition-colors"
+      className="h-12 rounded-lg border border-border bg-white px-4 text-[15px] text-foreground transition-colors placeholder:text-muted focus:border-primary focus:bg-primary-tint focus:outline-none"
     />
-  )
+  );
+}
 
-  // Custom styled select trigger
-  const StyledSelectTrigger = ({
-    children,
-    className,
-    ...props
-  }: React.ComponentProps<typeof SelectTrigger>) => (
+function StyledSelectTrigger({
+  children,
+  className,
+  ...props
+}: React.ComponentProps<typeof SelectTrigger>) {
+  return (
     <SelectTrigger
       {...props}
       className={cn(
-        'h-12 w-full rounded-lg border border-border bg-white px-4 text-[15px] text-foreground focus:border-primary focus:bg-primary-tint focus:ring-0 data-[placeholder]:text-muted',
-        className
+        "h-12 w-full rounded-lg border border-border bg-white px-4 text-[15px] text-foreground focus:border-primary focus:bg-primary-tint focus:ring-0 data-[placeholder]:text-muted",
+        className,
       )}
     >
       {children}
     </SelectTrigger>
-  )
+  );
+}
 
-  // Checkbox Row Component
-  const CheckboxRow = ({
-    label,
-    checked,
-    onChange,
-  }: {
-    label: string
-    checked: boolean
-    onChange: () => void
-  }) => (
-    <label className="flex items-center gap-3 h-12 cursor-pointer">
+function CheckboxRow({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: () => void;
+}) {
+  return (
+    <label className="flex h-12 cursor-pointer items-center gap-3">
       <Checkbox
         checked={checked}
         onCheckedChange={onChange}
-        className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+        className="data-[state=checked]:border-primary data-[state=checked]:bg-primary"
       />
       <span className="text-[15px] text-foreground">{label}</span>
     </label>
-  )
+  );
+}
 
-  // Confirmation Screen
+export function HostListingForm() {
+  const router = useRouter();
+  const [step, setStep] = useState(1);
+  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const [uploadError, setUploadError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const [formData, setFormData] = useState<FormData>({
+    firstName: "",
+    roomType: "",
+    quarter: "",
+    specifyLocation: "",
+    capacity: "",
+    price: "",
+    amenities: [],
+    houseRules: [],
+    whatsapp: "",
+    agreed: false,
+  });
+  const [photosPaths, setPhotosPaths] = useState<string[]>([]);
+  const [photoPreviews, setPhotoPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const updateFormData = <K extends keyof FormData>(
+    key: K,
+    value: FormData[K],
+  ) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+    if (fieldErrors[key as keyof FieldErrors]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[key as keyof FieldErrors];
+        return next;
+      });
+    }
+  };
+
+  const toggleArrayItem = (key: "amenities" | "houseRules", itemKey: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      [key]: prev[key].includes(itemKey)
+        ? prev[key].filter((i) => i !== itemKey)
+        : [...prev[key], itemKey],
+    }));
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files) return;
+
+    const slotsLeft = 5 - photosPaths.length;
+    if (slotsLeft <= 0) return;
+
+    setIsUploadingPhotos(true);
+    setUploadError("");
+
+    const supabase = createClient();
+    const newPaths: string[] = [];
+    const newPreviews: string[] = [];
+
+    try {
+      for (const file of Array.from(files).slice(0, slotsLeft)) {
+        const compressed = await imageCompression(file, {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1200,
+          useWebWorker: true,
+        });
+        const ext = getExtension(compressed);
+        const path = `listings/${Date.now()}-${randomSuffix()}.${ext}`;
+        const { error } = await supabase.storage
+          .from("listing-photos")
+          .upload(path, compressed, { 
+            upsert: false,
+            contentType: compressed.type || "image/jpeg",  // added this line to fix the image upload error
+           });
+
+        if (error) {
+          throw error;
+        }
+
+        newPaths.push(path);
+        newPreviews.push(URL.createObjectURL(compressed));
+      }
+
+      setPhotosPaths((prev) => [...prev, ...newPaths].slice(0, 5));
+      setPhotoPreviews((prev) => [...prev, ...newPreviews].slice(0, 5));
+      if (fieldErrors.photos) {
+        setFieldErrors((prev) => {
+          const next = { ...prev };
+          delete next.photos;
+          return next;
+        });
+      }
+    } catch {
+      newPreviews.forEach((url) => URL.revokeObjectURL(url));
+      setUploadError("Failed to upload photo. Please try again.");
+    } finally {
+      setIsUploadingPhotos(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const removePhoto = (index: number) => {
+    URL.revokeObjectURL(photoPreviews[index]);
+    setPhotosPaths((prev) => prev.filter((_, i) => i !== index));
+    setPhotoPreviews((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const validateForm = (): FieldErrors => {
+    const errors: FieldErrors = {};
+
+    if (!formData.firstName.trim()) {
+      errors.firstName = "First name is required.";
+    }
+    if (!formData.roomType) {
+      errors.roomType = "Room type is required.";
+    }
+    if (!formData.quarter) {
+      errors.quarter = "Quarter is required.";
+    }
+    if (formData.quarter === "Other" && !formData.specifyLocation.trim()) {
+      errors.specifyLocation = "Please specify your location.";
+    }
+    if (!formData.capacity) {
+      errors.capacity = "Please select how many examiners you can host.";
+    }
+
+    const price = Number.parseInt(formData.price, 10);
+    if (
+      !formData.price.trim() ||
+      !Number.isInteger(price) ||
+      price < MIN_PRICE ||
+      price > MAX_PRICE
+    ) {
+      errors.price = `Price must be between ${MIN_PRICE.toLocaleString()} and ${MAX_PRICE.toLocaleString()} FCFA.`;
+    }
+
+    if (!WHATSAPP_PATTERN.test(formData.whatsapp.trim())) {
+      errors.whatsapp =
+        "Enter a valid 9-digit Cameroon number (e.g. 677123456).";
+    }
+
+    if (photosPaths.length < 1) {
+      errors.photos = "Upload at least one photo.";
+    }
+
+    if (!formData.agreed) {
+      errors.agreed = "You must agree before submitting.";
+    }
+
+    return errors;
+  };
+
+  const handleSubmit = async () => {
+    setSubmitError("");
+    const errors = validateForm();
+    setFieldErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      if (
+        errors.firstName ||
+        errors.roomType ||
+        errors.quarter ||
+        errors.specifyLocation ||
+        errors.capacity
+      ) {
+        setStep(1);
+      } else if (errors.price) {
+        setStep(2);
+      }
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    const payload = new FormData();
+    payload.append("host_name", formData.firstName.trim());
+    payload.append("whatsapp", formData.whatsapp.trim());
+    payload.append("room_type", formData.roomType);
+    payload.append("quarter", formData.quarter);
+    if (formData.quarter === "Other") {
+      payload.append("quarter_other", formData.specifyLocation.trim());
+    }
+    payload.append("spaces", String(capacityToSpaces(formData.capacity)));
+    payload.append("price_per_2weeks", formData.price.trim());
+    formData.amenities.forEach((key) => payload.append("amenities", key));
+    formData.houseRules.forEach((key) => payload.append("house_rules", key));
+    photosPaths.forEach((path) => payload.append("photos", path));
+
+    const result = await submitListing(payload);
+
+    setIsSubmitting(false);
+
+    if (result.success) {
+      photoPreviews.forEach((url) => URL.revokeObjectURL(url));
+      setSubmitted(true);
+      return;
+    }
+
+    setSubmitError(result.error);
+  };
+
   if (submitted) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-5">
-        <CheckCircle className="w-12 h-12 text-success mb-4" />
-        <h2 className="font-heading font-bold text-[24px] text-foreground mb-6">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-5">
+        <CheckCircle className="mb-4 h-12 w-12 text-success" />
+        <h2 className="mb-6 font-heading text-[24px] font-bold text-foreground">
           Listing Submitted!
         </h2>
-        <p className="text-[15px] text-muted text-center leading-relaxed">
+        <p className="text-center text-[15px] leading-relaxed text-muted">
           {"We'll review your listing within 24 hours."}
           <br />
           {"If approved, we'll contact you on WhatsApp."}
         </p>
-        <button
-          onClick={() => {
-            setSubmitted(false)
-            setStep(1)
-            setFormData({
-              firstName: '',
-              roomType: '',
-              quarter: '',
-              specifyLocation: '',
-              capacity: '',
-              price: '',
-              amenities: [],
-              houseRules: [],
-              whatsapp: '',
-              photos: [],
-              agreed: false,
-            })
-            setPhotoPreviews([])
-          }}
-          className="mt-8 h-[52px] w-full rounded-[10px] border border-primary text-primary font-semibold text-[16px]"
+        <Link
+          href="/"
+          className="mt-8 flex h-[52px] w-full items-center justify-center rounded-[10px] border border-primary text-[16px] font-semibold text-primary"
         >
           Back to Home
-        </button>
+        </Link>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <Header />
-      <StepIndicator />
+    <div className="flex min-h-screen flex-col bg-background">
+      <HostFormHeader
+        onBack={() => {
+          if (step > 1) {
+            setStep(step - 1);
+          } else {
+            router.back();
+          }
+        }}
+      />
+      <StepIndicator step={step} />
 
       <div className="flex-1 px-5 pb-8">
-        {/* Step 1: Basic Information */}
         {step === 1 && (
           <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-xl p-4 flex flex-col gap-5">
-              <InputField label="First Name" required>
+            <div className="flex flex-col gap-5 rounded-xl bg-white p-4">
+              <InputField
+                label="First Name"
+                required
+                error={fieldErrors.firstName}
+              >
                 <StyledInput
                   type="text"
                   placeholder="e.g. Amara"
                   value={formData.firstName}
-                  onChange={(e) => updateFormData('firstName', e.target.value)}
+                  onChange={(e) => updateFormData("firstName", e.target.value)}
                 />
               </InputField>
 
-              <InputField label="Room Type" required>
+              <InputField
+                label="Room Type"
+                required
+                error={fieldErrors.roomType}
+              >
                 <Select
                   value={formData.roomType}
-                  onValueChange={(v) => updateFormData('roomType', v)}
+                  onValueChange={(v) => {
+                    if (v) updateFormData("roomType", v);
+                  }}
                 >
                   <StyledSelectTrigger>
                     <SelectValue placeholder="Select room type" />
@@ -324,10 +488,16 @@ export function HostListingForm() {
                 </Select>
               </InputField>
 
-              <InputField label="Quarter / Location" required>
+              <InputField
+                label="Quarter / Location"
+                required
+                error={fieldErrors.quarter}
+              >
                 <Select
                   value={formData.quarter}
-                  onValueChange={(v) => updateFormData('quarter', v)}
+                  onValueChange={(v) => {
+                    if (v) updateFormData("quarter", v);
+                  }}
                 >
                   <StyledSelectTrigger>
                     <SelectValue placeholder="Select location" />
@@ -342,29 +512,39 @@ export function HostListingForm() {
                 </Select>
               </InputField>
 
-              {formData.quarter === 'Other' && (
-                <InputField label="Specify Location" required>
+              {formData.quarter === "Other" && (
+                <InputField
+                  label="Specify Location"
+                  required
+                  error={fieldErrors.specifyLocation}
+                >
                   <StyledInput
                     type="text"
                     placeholder="Enter your area name"
                     value={formData.specifyLocation}
-                    onChange={(e) => updateFormData('specifyLocation', e.target.value)}
+                    onChange={(e) =>
+                      updateFormData("specifyLocation", e.target.value)
+                    }
                   />
                 </InputField>
               )}
 
-              <InputField label="How many examiners can you host?" required>
+              <InputField
+                label="How many examiners can you host?"
+                required
+                error={fieldErrors.capacity}
+              >
                 <div className="flex gap-3">
-                  {['1', '2', '3+'].map((cap) => (
+                  {["1", "2", "3+"].map((cap) => (
                     <button
                       key={cap}
                       type="button"
-                      onClick={() => updateFormData('capacity', cap)}
+                      onClick={() => updateFormData("capacity", cap)}
                       className={cn(
-                        'flex-1 h-12 rounded-lg border text-[15px] font-medium transition-colors',
+                        "h-12 flex-1 rounded-lg border text-[15px] font-medium transition-colors",
                         formData.capacity === cap
-                          ? 'bg-primary text-white border-primary'
-                          : 'bg-white text-foreground border-border'
+                          ? "border-primary bg-primary text-white"
+                          : "border-border bg-white text-foreground",
                       )}
                     >
                       {cap}
@@ -375,28 +555,29 @@ export function HostListingForm() {
             </div>
 
             <button
+              type="button"
               onClick={() => setStep(2)}
-              className="h-[52px] w-full rounded-[10px] bg-primary text-white font-semibold text-[16px]"
+              className="h-[52px] w-full rounded-[10px] bg-primary text-[16px] font-semibold text-white"
             >
-              {'Next: Pricing & Amenities →'}
+              {"Next: Pricing & Amenities →"}
             </button>
           </div>
         )}
 
-        {/* Step 2: Pricing & Amenities */}
         {step === 2 && (
           <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-xl p-4 flex flex-col gap-5">
+            <div className="flex flex-col gap-5 rounded-xl bg-white p-4">
               <InputField
                 label="Your price for 2 weeks (FCFA)"
                 required
                 helper="Suggested range: 15 000 – 35 000 FCFA"
+                error={fieldErrors.price}
               >
                 <StyledInput
                   type="number"
                   placeholder="e.g. 25000"
                   value={formData.price}
-                  onChange={(e) => updateFormData('price', e.target.value)}
+                  onChange={(e) => updateFormData("price", e.target.value)}
                 />
               </InputField>
 
@@ -407,10 +588,10 @@ export function HostListingForm() {
                 <div className="grid grid-cols-2 gap-x-4">
                   {AMENITIES.map((amenity) => (
                     <CheckboxRow
-                      key={amenity}
-                      label={amenity}
-                      checked={formData.amenities.includes(amenity)}
-                      onChange={() => toggleArrayItem('amenities', amenity)}
+                      key={amenity.key}
+                      label={amenity.label}
+                      checked={formData.amenities.includes(amenity.key)}
+                      onChange={() => toggleArrayItem("amenities", amenity.key)}
                     />
                   ))}
                 </div>
@@ -423,10 +604,10 @@ export function HostListingForm() {
                 <div className="grid grid-cols-2 gap-x-4">
                   {HOUSE_RULES.map((rule) => (
                     <CheckboxRow
-                      key={rule}
-                      label={rule}
-                      checked={formData.houseRules.includes(rule)}
-                      onChange={() => toggleArrayItem('houseRules', rule)}
+                      key={rule.key}
+                      label={rule.label}
+                      checked={formData.houseRules.includes(rule.key)}
+                      onChange={() => toggleArrayItem("houseRules", rule.key)}
                     />
                   ))}
                 </div>
@@ -434,40 +615,42 @@ export function HostListingForm() {
             </div>
 
             <button
+              type="button"
               onClick={() => setStep(3)}
-              className="h-[52px] w-full rounded-[10px] bg-primary text-white font-semibold text-[16px]"
+              className="h-[52px] w-full rounded-[10px] bg-primary text-[16px] font-semibold text-white"
             >
-              {'Next: Contact & Photos →'}
+              {"Next: Contact & Photos →"}
             </button>
           </div>
         )}
 
-        {/* Step 3: Contact & Agreement */}
         {step === 3 && (
           <div className="flex flex-col gap-6">
-            <div className="bg-white rounded-xl p-4 flex flex-col gap-5">
+            <div className="flex flex-col gap-5 rounded-xl bg-white p-4">
               <InputField
                 label="Your WhatsApp Number"
                 required
                 helper="Cameroon number, digits only (e.g. 677123456)"
+                error={fieldErrors.whatsapp}
               >
                 <StyledInput
                   type="tel"
                   placeholder="6XXXXXXXX"
                   value={formData.whatsapp}
-                  onChange={(e) => updateFormData('whatsapp', e.target.value)}
+                  onChange={(e) => updateFormData("whatsapp", e.target.value)}
                 />
               </InputField>
 
-              {/* Privacy Notice */}
-              <div className="bg-primary-tint border-l-[3px] border-primary rounded-lg p-3 flex gap-2">
-                <Lock className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="text-[13px] text-trust-text leading-relaxed">
-                  Your name and WhatsApp number are private. Only HomeConnect admin can see them. They are only shared with an examiner who has paid the service fee and confirmed genuine interest in your room.
+              <div className="flex gap-2 rounded-lg border-l-[3px] border-primary bg-primary-tint p-3">
+                <Lock className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                <p className="text-[13px] leading-relaxed text-trust-text">
+                  Your name and WhatsApp number are private. Only HomeConnect
+                  admin can see them. They are only shared with an examiner who
+                  has paid the service fee and confirmed genuine interest in
+                  your room.
                 </p>
               </div>
 
-              {/* Photo Upload */}
               <div className="flex flex-col gap-3">
                 <span className="text-[15px] font-medium text-foreground">
                   Room Photos <span className="text-primary">*</span>
@@ -478,6 +661,7 @@ export function HostListingForm() {
                   type="file"
                   accept="image/jpeg,image/png"
                   multiple
+                  disabled={isUploadingPhotos}
                   onChange={handlePhotoUpload}
                   className="hidden"
                 />
@@ -485,76 +669,102 @@ export function HostListingForm() {
                 {photoPreviews.length === 0 ? (
                   <button
                     type="button"
+                    disabled={isUploadingPhotos}
                     onClick={() => fileInputRef.current?.click()}
-                    className="h-[100px] rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1"
+                    className="flex h-[100px] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-border"
                   >
-                    <UploadCloud className="w-6 h-6 text-muted" />
-                    <span className="text-[14px] text-muted">Tap to add photos</span>
+                    <UploadCloud className="h-6 w-6 text-muted" />
+                    <span className="text-[14px] text-muted">
+                      {isUploadingPhotos ? "Uploading…" : "Tap to add photos"}
+                    </span>
                     <span className="text-[12px] text-muted">
                       JPG or PNG · Min 1 · Max 5 · 5MB each
                     </span>
                   </button>
                 ) : (
-                  <div className="flex gap-2 flex-wrap">
+                  <div className="flex flex-wrap gap-2">
                     {photoPreviews.map((preview, index) => (
-                      <div key={index} className="relative">
+                      <div key={photosPaths[index] ?? index} className="relative">
                         <img
                           src={preview}
                           alt={`Room photo ${index + 1}`}
-                          className="w-20 h-20 object-cover rounded-lg"
+                          className="h-20 w-20 rounded-lg object-cover"
                         />
                         <button
                           type="button"
                           onClick={() => removePhoto(index)}
-                          className="absolute -top-1 -right-1 w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-sm"
+                          className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-sm"
                         >
-                          <X className="w-3 h-3 text-foreground" />
+                          <X className="h-3 w-3 text-foreground" />
                         </button>
                       </div>
                     ))}
                     {photoPreviews.length < 5 && (
                       <button
                         type="button"
+                        disabled={isUploadingPhotos}
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-20 h-20 rounded-lg border-2 border-dashed border-border flex items-center justify-center"
+                        className="flex h-20 w-20 items-center justify-center rounded-lg border-2 border-dashed border-border"
                       >
-                        <Plus className="w-6 h-6 text-muted" />
+                        <Plus className="h-6 w-6 text-muted" />
                       </button>
                     )}
                   </div>
                 )}
+
+                {fieldErrors.photos && (
+                  <span className="text-[13px] text-[#C0392B]">
+                    {fieldErrors.photos}
+                  </span>
+                )}
+                {uploadError && (
+                  <span className="text-[13px] text-[#C0392B]">{uploadError}</span>
+                )}
               </div>
 
-              {/* Agreement Checkbox */}
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox
-                  checked={formData.agreed}
-                  onCheckedChange={(checked) =>
-                    updateFormData('agreed', checked === true)
-                  }
-                  className="mt-0.5 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                />
-                <span className="text-[14px] text-foreground leading-relaxed">
-                  I understand HomeConnect charges the examiner a 15% service fee before sharing my contact. I will receive my full quoted price directly from the examiner.
-                </span>
-              </label>
+              <div className="flex flex-col gap-1">
+                <label className="flex cursor-pointer items-start gap-3">
+                  <Checkbox
+                    checked={formData.agreed}
+                    onCheckedChange={(checked) =>
+                      updateFormData("agreed", checked === true)
+                    }
+                    className="mt-0.5 data-[state=checked]:border-primary data-[state=checked]:bg-primary"
+                  />
+                  <span className="text-[14px] leading-relaxed text-foreground">
+                    I understand HomeConnect charges the examiner a 15% service
+                    fee before sharing my contact. I will receive my full quoted
+                    price directly from the examiner.
+                  </span>
+                </label>
+                {fieldErrors.agreed && (
+                  <span className="text-[13px] text-[#C0392B]">
+                    {fieldErrors.agreed}
+                  </span>
+                )}
+              </div>
             </div>
 
+            {submitError && (
+              <p className="text-center text-[14px] text-[#C0392B]">{submitError}</p>
+            )}
+
             <button
+              type="button"
               onClick={handleSubmit}
-              disabled={!canSubmit}
+              disabled={isSubmitting || isUploadingPhotos}
               className={cn(
-                'h-[52px] w-full rounded-[10px] font-semibold text-[16px] transition-colors',
-                canSubmit
-                  ? 'bg-primary text-white'
-                  : 'bg-border text-muted cursor-not-allowed'
+                "h-[52px] w-full rounded-[10px] text-[16px] font-semibold transition-colors",
+                isSubmitting || isUploadingPhotos
+                  ? "cursor-not-allowed bg-border text-muted"
+                  : "bg-primary text-white",
               )}
             >
-              Submit Listing
+              {isSubmitting ? "Submitting…" : "Submit Listing"}
             </button>
           </div>
         )}
       </div>
     </div>
-  )
+  );
 }
