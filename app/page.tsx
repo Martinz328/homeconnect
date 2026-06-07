@@ -161,7 +161,7 @@ export default function HomePage() {
             className="text-sm font-normal text-[#92400E]"
             style={{ fontFamily: 'var(--font-inter)' }}
           >
-            Your contact is private. Only shared after an Interested verified Examineer requests it. View your listing in the "Find A Room" section.
+            Your contact is private. Only shared after an Interested verified Examiner requests it. View your listing in the "Find A Room" section.
           </p>
         </div>
       </section>
@@ -172,7 +172,7 @@ export default function HomePage() {
           className="text-center text-xs font-normal text-[#6C6C70]"
           style={{ fontFamily: 'var(--font-inter)' }}
         >
-          © HomeConnect 2026 · Martins · Buea, Cameroon
+          © HomeConnect 2026 · Buea, Cameroon
         </p>
       </footer>
     </div>

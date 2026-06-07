@@ -24,8 +24,7 @@ export const QUARTERS = [
   "Checkpoint",
   "Clerks Quarter",
   "Congelcam",
-  "Court Junction",
-  "Dirty South",
+  "Court Junction",,
   "Federal Quarter",
   "GRA",
   "Great Soppo",
@@ -56,6 +55,7 @@ export const QUARTERS = [
   "Total Molyko",
   "Tuborg Junction",
   "UB Junction",
+  "UB South",
   "Other",
 ] as const;
 
