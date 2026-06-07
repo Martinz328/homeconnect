@@ -21,7 +21,7 @@ function isRoomType(value: string): value is (typeof ROOM_TYPES)[number] {
   return (ROOM_TYPES as readonly string[]).includes(value);
 }
 
-function isQuarter(value: string): value is (typeof QUARTERS)[number] {
+function isQuarter(value: any): value is (typeof QUARTERS)[number] {
   return (QUARTERS as readonly string[]).includes(value);
 }
 

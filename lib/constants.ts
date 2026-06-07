@@ -24,7 +24,7 @@ export const QUARTERS = [
   "Checkpoint",
   "Clerks Quarter",
   "Congelcam",
-  "Court Junction",,
+  "Court Junction",
   "Federal Quarter",
   "GRA",
   "Great Soppo",
