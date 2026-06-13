@@ -18,7 +18,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "HomeConnect — Find Your Buea Room",
+  title: "HomeConnect — Find A Room In Buea",
   description:
     "Short-stay rooms near all marking centres in Buea, Cameroon. Real photos, clear prices. Built for GCE marking season 2026.",
   manifest: "/manifest.json",
